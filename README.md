@@ -62,6 +62,6 @@ systemctl is-enabled xuma #To check whetether Xuma service is enabled on boot or
 
 Any donation is highly appreciated.  
 
-**BTC**: 1BzeQ12m4zYaQKqysGNVbQv1taN7qgS8gY
+**BTC**: 1BzeQ12m4zYaQKqysGNVbQv1taN7qgS8gY  
 **ETH**: 0x39d10fe57611c564abc255ffd7e984dc97e9bd6d
 **LTC**: LXrWbfeejNQRmRvtzB6Te8yns93Tu3evGf
