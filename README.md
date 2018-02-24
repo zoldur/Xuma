@@ -14,7 +14,7 @@ bash xuma_install.sh
 After the MN is up and running, you need to configure the desktop wallet accordingly. Here are the steps for Windows Wallet
 1. Open the Xuma Coin Desktop Wallet.
 2. Go to RECEIVE and create a New Address: **MN1**
-3. Send **10000** XUMA to **MN1**.
+3. Send **10000** **XMX** to **MN1**.
 4. Wait for 15 confirmations.
 5. Go to **Tools -> "Debug console - Console"**
 6. Type the following command: **masternode outputs**
@@ -62,6 +62,7 @@ systemctl is-enabled xuma #To check whetether Xuma service is enabled on boot or
 
 Any donation is highly appreciated.  
 
+**XMX**: XXa4EJZCUrfpsc6SBZk4D8x8Q14jG7a7kJ  
 **BTC**: 1BzeQ12m4zYaQKqysGNVbQv1taN7qgS8gY  
-**ETH**: 0x39d10fe57611c564abc255ffd7e984dc97e9bd6d
+**ETH**: 0x39d10fe57611c564abc255ffd7e984dc97e9bd6d  
 **LTC**: LXrWbfeejNQRmRvtzB6Te8yns93Tu3evGf
