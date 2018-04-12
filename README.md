@@ -33,7 +33,6 @@ Alias Address Privkey TxHash Output_index
 11. Click **Update status** to see your node. If it is not shown, close the wallet and start it again.
 10. Click **Start All**
 11. If you are not able to see your **Masternode**, try to close and open your desktop wallet.
-
 ***
 
 ## Usage:
@@ -41,21 +40,18 @@ Alias Address Privkey TxHash Output_index
 For security reasons **XumaCoin** is installed under **xuma** user, hence you need to **su - xuma** before checking:
 
 ```
-XUMA_USER=xuma #replace xuma with the MN username you want to check
-su - $XUMA_USER
 xuma-cli mnsync status
 xuma-cli getinfo
+xuma-cli masternode status
 ```
-
 Also, if you want to check/start/stop **Xuma** , run one of the following commands as **root**:
 
 ```
-systemctl status xuma #To check the service is running.
-systemctl start xuma #To start Xuma service.
-systemctl stop xuma #To stop Xuma service.
-systemctl is-enabled xuma #To check whetether Xuma service is enabled on boot or not.
+systemctl status Xuma #To check the service is running.
+systemctl start Xuma #To start Xuma service.
+systemctl stop Xuma #To stop Xuma service.
+systemctl is-enabled Xuma #To check whetether Xuma service is enabled on boot or not.
 ```
-
 ***
 
 ## Donations:  
@@ -66,3 +62,4 @@ Any donation is highly appreciated.
 **BTC**: 1BzeQ12m4zYaQKqysGNVbQv1taN7qgS8gY  
 **ETH**: 0x39d10fe57611c564abc255ffd7e984dc97e9bd6d  
 **LTC**: LXrWbfeejNQRmRvtzB6Te8yns93Tu3evGf
+

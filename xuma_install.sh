@@ -1,15 +1,16 @@
 #!/bin/bash
 
-TMP_FOLDER="$(mktemp -d)"
+TMP_FOLDER=$(mktemp -d)
 CONFIG_FILE='xuma.conf'
-CONFIGFOLDER='.xuma/mainnet'
-COIN_DAEMON='/usr/local/bin/xumad'
-COIN_CLI='/usr/local/bin/xuma-cli'
-COIN_REPO='https://github.com/xumacoin/xuma-core'
-COIN_NAME='xuma'
+CONFIGFOLDER='/root/.xuma/mainnet'
+COIN_DAEMON='xumad'
+COIN_CLI='xuma-cli'
+COIN_PATH='/usr/local/bin/'
+COIN_TGZ='https://github.com/zoldur/Xuma/releases/download/v.1.0.5/xuma.tar.gz'
+COIN_ZIP=$(echo $COIN_TGZ | awk -F'/' '{print $NF}')
+COIN_NAME='Xuma'
 COIN_PORT=19777
-RPCPORT=19643
-
+RPC_PORT=19643
 
 NODEIP=$(curl -s4 icanhazip.com)
 
@@ -18,23 +19,18 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
-
-function compile_node() {
-  echo -e "Prepare to compile binaries. This may take some time."
-  git clone $COIN_REPO $TMP_FOLDER >/dev/null 2>&1
-  cd $TMP_FOLDER
-  chmod +x ./autogen.sh
-  ./autogen.sh
-  compile_error 
-  ./configure
+function download_node() {
+  echo -e "Prepare to download ${GREEN}$COIN_NAME${NC}."
+  cd $TMP_FOLDER >/dev/null 2>&1
+  wget -q $COIN_TGZ
   compile_error
-  make 
-  compile_error
-  make install
-  cd - 
+  tar xzvf $COIN_ZIP -C $COIN_PATH
+  chmod +x $COIN_PATH$COIN_DAEMON $COIN_PATH$COIN_CLI
+  cd - >/dev/null 2>&1
   rm -rf $TMP_FOLDER >/dev/null 2>&1
   clear
 }
+
 
 function configure_systemd() {
   cat << EOF > /etc/systemd/system/$COIN_NAME.service
@@ -43,14 +39,14 @@ Description=$COIN_NAME service
 After=network.target
 
 [Service]
-User=$COIN_USER
-Group=$COIN_USER
+User=root
+Group=root
 
 Type=forking
-#PIDFile=$COINFOLDER/$COIN_NAME.pid
+#PIDFile=$CONFIGFOLDER/$COIN_NAME.pid
 
-ExecStart=$COIN_DAEMON -daemon -conf=$COINFOLDER/$CONFIG_FILE -datadir=$COINFOLDER
-ExecStop=-$COIN_CLI -conf=$COINFOLDER/$CONFIG_FILE -datadir=$COINFOLDER stop
+ExecStart=$COIN_PATH$COIN_DAEMON -daemon -conf=$CONFIGFOLDER/$CONFIG_FILE -datadir=$CONFIGFOLDER
+ExecStop=-$COIN_PATH$COIN_CLI -conf=$CONFIGFOLDER/$CONFIG_FILE -datadir=$CONFIGFOLDER stop
 
 Restart=always
 PrivateTmp=true
@@ -78,35 +74,16 @@ EOF
 }
 
 
-function ask_user() {
-  read -p "$COIN_NAME user: " -i $COIN_NAME -e COIN_USER
-  : ${COIN_USER:=$COINE_NAME}
-
-  if [ -z "$(getent passwd $COIN_USER)" ]; then
-    USERPASS=$(pwgen -s 12 1)
-    useradd -m $COIN_USER
-    echo "$COIN_USER:$USERPASS" | chpasswd
-
-    COIN_HOME=$(sudo -H -u $COIN_USER bash -c 'echo $HOME')
-    COINFOLDER="$COIN_HOME/$CONFIGFOLDER"
-    mkdir -p $COINFOLDER
-    chown -R $COIN_USER: $COINFOLDER >/dev/null 2>&1
-  else
-    clear
-    echo -e "${RED}User exits. Please enter another username: ${NC}"
-    ask_user
-  fi
-}
-
-
-
 function create_config() {
-  mkdir $COINFOLDER >/dev/null 2>&1
-  RPCUSER=$(pwgen -s 8 1)
-  RPCPASSWORD=$(pwgen -s 15 1)
-  cat << EOF > $COINFOLDER/$CONFIG_FILE
+  $COIN_PATH$COIN_DAEMON >/dev/null 2>&1
+  sleep 5
+  RPCUSER=$(tr -cd '[:alnum:]' < /dev/urandom | fold -w10 | head -n1)
+  RPCPASSWORD=$(tr -cd '[:alnum:]' < /dev/urandom | fold -w22 | head -n1)
+  echo $CONFIGFOLDER/$CONFIG_FILE
+  cat << EOF > $CONFIGFOLDER/$CONFIG_FILE
 rpcuser=$RPCUSER
 rpcpassword=$RPCPASSWORD
+rpcport=$RPC_PORT
 rpcallowip=127.0.0.1
 listen=1
 server=1
@@ -116,32 +93,34 @@ EOF
 }
 
 function create_key() {
-  echo -e "Enter your ${RED}Masternode Private Key${NC}. Leave it blank to generate a new ${RED}Masternode Private Key${NC} for you:"
+  echo -e "Enter your ${RED}$COIN_NAME Masternode Private Key${NC}. Leave it blank to generate a new ${RED}Masternode Private Key${NC} for you:"
   read -e COINKEY
   if [[ -z "$COINKEY" ]]; then
-  $COIN_DAEMON -daemon
+  $COIN_PATH$COIN_DAEMON -daemon >/dev/null 2>&1
   sleep 30
   if [ -z "$(ps axo cmd:100 | grep $COIN_DAEMON)" ]; then
-   echo -e "${RED}$COIN_NAME server couldn't start. Check /var/log/syslog for errors.{$NC}"
+   echo -e "${RED}$COIN_NAME server couldn not start. Check /var/log/syslog for errors.{$NC}"
    exit 1
   fi
-  COINKEY=$(su $COIN_USER -c "$COIN_CLI masternode genkey")
+  COINKEY=$($COIN_PATH$COIN_CLI masternode genkey)
   if [ "$?" -gt "0" ];
     then
-    echo -e "${RED}Wallet not fully loaded. Let's wait and try again to generate the Priavte Key${NC}"
+    echo -e "${RED}Wallet not fully loaded. Let us wait and try again to generate the Private Key${NC}"
     sleep 30
-    COINKEY=$(su $COIN_USER -c "$COIN_CLI masternode genkey")
+    COINKEY=$($COIN_PATH$COIN_CLI masternode genkey)
   fi
-  su $COIN_USER -c "$COIN_CLI stop"
+  $COIN_PATH$COIN_CLI stop
 fi
 clear
 }
 
 function update_config() {
-  sed -i 's/daemon=1/daemon=0/' $COINFOLDER/$CONFIG_FILE
-  cat << EOF >> $COINFOLDER/$CONFIG_FILE
+  sed -i 's/daemon=1/daemon=0/' $CONFIGFOLDER/$CONFIG_FILE
+  cat << EOF >> $CONFIGFOLDER/$CONFIG_FILE
+
 logintimestamps=1
 maxconnections=256
+#bind=$NODEIP
 masternode=1
 masternodeaddr=$NODEIP:$COIN_PORT
 masternodeprivkey=$COINKEY
@@ -150,17 +129,13 @@ EOF
 
 
 function enable_firewall() {
-  echo -e "Installing fail2ban and setting up firewall to allow ingress on port ${GREEN}$COIN_PORT${NC}"
+  echo -e "Installing and setting up firewall to allow ingress on port ${GREEN}$COIN_PORT${NC}"
   ufw allow $COIN_PORT/tcp comment "$COIN_NAME MN port" >/dev/null
-  ufw allow $RPCPORT/tcp comment "$COIN_NAME RPC port" >/dev/null
   ufw allow ssh comment "SSH" >/dev/null 2>&1
   ufw limit ssh/tcp >/dev/null 2>&1
   ufw default allow outgoing >/dev/null 2>&1
   echo "y" | ufw enable >/dev/null 2>&1
-  systemctl enable fail2ban >/dev/null 2>&1
-  systemctl start fail2ban >/dev/null 2>&1
 }
-
 
 
 function get_ip() {
@@ -214,22 +189,6 @@ fi
 }
 
 function prepare_system() {
-echo -e "Checking if swap space is needed."
-PHYMEM=$(free -g|awk '/^Mem:/{print $2}')
-SWAP=$(free -g|awk '/^Swap:/{print $2}')
-if [ "$PHYMEM" -lt "2" ] && [ -n "$SWAP" ]
-  then
-    echo -e "${GREEN}Server is running with less than 2G of RAM without SWAP, creating 2G swap file.${NC}"
-    SWAPFILE=$(mktemp)
-    dd if=/dev/zero of=$SWAPFILE bs=1024 count=2M
-    chmod 600 $SWAPFILE
-    mkswap $SWAPFILE
-    swapon -a $SWAPFILE
-else
-  echo -e "${GREEN}Server running with at least 2G of RAM, no swap needed.${NC}"
-fi
-clear
-
 echo -e "Prepare the system to install ${GREEN}$COIN_NAME${NC} master node."
 apt-get update >/dev/null 2>&1
 DEBIAN_FRONTEND=noninteractive apt-get update > /dev/null 2>&1
@@ -241,8 +200,8 @@ echo -e "Installing required packages, it may take some time to finish.${NC}"
 apt-get update >/dev/null 2>&1
 apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" make software-properties-common \
 build-essential libtool autoconf libssl-dev libboost-dev libboost-chrono-dev libboost-filesystem-dev libboost-program-options-dev \
-libboost-system-dev libboost-test-dev libboost-thread-dev sudo automake git wget pwgen curl libdb4.8-dev bsdmainutils libdb4.8++-dev \
-libminiupnpc-dev libgmp3-dev ufw fail2ban python-virtualenv pkg-config libevent-dev >/dev/null 2>&1
+libboost-system-dev libboost-test-dev libboost-thread-dev sudo automake git wget curl libdb4.8-dev bsdmainutils libdb4.8++-dev \
+libminiupnpc-dev libgmp3-dev ufw pkg-config libevent-dev  libdb5.3++ unzip >/dev/null 2>&1
 if [ "$?" -gt "0" ];
   then
     echo -e "${RED}Not all required packages were installed properly. Try to install them manually by running the following commands:${NC}\n"
@@ -251,39 +210,34 @@ if [ "$?" -gt "0" ];
     echo "apt-add-repository -y ppa:bitcoin/bitcoin"
     echo "apt-get update"
     echo "apt install -y make build-essential libtool software-properties-common autoconf libssl-dev libboost-dev libboost-chrono-dev libboost-filesystem-dev \
-libboost-program-options-dev libboost-system-dev libboost-test-dev libboost-thread-dev sudo automake git pwgen curl libdb4.8-dev \
-bsdmainutils libdb4.8++-dev libminiupnpc-dev libgmp3-dev ufw fail2ban python-virtualenv pkg-config libevent-dev"
+libboost-program-options-dev libboost-system-dev libboost-test-dev libboost-thread-dev sudo automake git curl libdb4.8-dev \
+bsdmainutils libdb4.8++-dev libminiupnpc-dev libgmp3-dev ufw pkg-config libevent-dev libdb5.3++ unzip"
  exit 1
 fi
-
 clear
 }
 
-
-
 function important_information() {
- echo
  echo -e "================================================================================================================================"
- echo -e "$COIN_NAME Masternode is up and running as user ${GREEN}$COIN_USER${NC} listening on port ${GREEN}$COIN_PORT${NC}."
- echo -e "${GREEN}$COIN_USER${NC} PASSWORD is: ${RED}$USERPASS${NC}"
- echo -e "Configuration file is: ${RED}$COINFOLDER/$CONFIG_FILE${NC}"
+ echo -e "$COIN_NAME Masternode is up and running listening on port ${RED}$COIN_PORT${NC}."
+ echo -e "Configuration file is: ${RED}$CONFIGFOLDER/$CONFIG_FILE${NC}"
  echo -e "Start: ${RED}systemctl start $COIN_NAME.service${NC}"
  echo -e "Stop: ${RED}systemctl stop $COIN_NAME.service${NC}"
  echo -e "VPS_IP:PORT ${RED}$NODEIP:$COIN_PORT${NC}"
  echo -e "MASTERNODE PRIVATEKEY is: ${RED}$COINKEY${NC}"
- echo -e "Please check ${GREEN}$COIN_NAME${NC} is running with the following command: ${GREEN}systemctl status $COIN_NAME.service${NC}"
+ echo -e "Please check ${RED}$COIN_NAME${NC} daemon is running with the following command: ${RED}systemctl status $COIN_NAME.service${NC}"
+ echo -e "Use ${RED}$COIN_CLI masternode status${NC} to check your MN. A running MN will show ${RED}Status 9${NC}."
  echo -e "================================================================================================================================"
 }
 
 function setup_node() {
   get_ip
-  ask_user
   create_config
   create_key
   update_config
   enable_firewall
-  configure_systemd
   important_information
+  configure_systemd
 }
 
 
@@ -292,6 +246,6 @@ clear
 
 checks
 prepare_system
-compile_node
+download_node
 setup_node
 
