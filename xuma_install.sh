@@ -7,6 +7,7 @@ COIN_DAEMON='xumad'
 COIN_CLI='xuma-cli'
 COIN_PATH='/usr/local/bin/'
 COIN_TGZ='https://github.com/zoldur/Xuma/releases/download/v.1.1.2/xuma.tar.gz'
+COIN_REPO='https://github.com/xumacoin/xuma-core.git'
 COIN_ZIP=$(echo $COIN_TGZ | awk -F'/' '{print $NF}')
 COIN_NAME='Xuma'
 COIN_PORT=19777
@@ -18,6 +19,28 @@ NODEIP=$(curl -s4 icanhazip.com)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
+
+function compile_node() {
+  echo -e "Preparing to download ${GREEN}$COIN_NAME${NC}."
+  git clone $COIN_REPO $TMP_FOLDER
+  compile_error
+  cd $TMP_FOLDER
+  chmod +x ./autogen.sh
+  chmod +x share/genbuild.sh
+  chmod +x src/leveldb/build_detect_platform
+  ./autogen.sh
+  compile_error
+  ./configure
+  compile_error
+  make 
+  compile_error
+  make install >/dev/null 2>&1
+  compile_error
+  cd - >/dev/null 2>&1
+  rm -r $TMP_FOLDER >/dev/null 2>&1
+  clear
+}
+
 
 function download_node() {
   echo -e "Prepare to download ${GREEN}$COIN_NAME${NC}."
@@ -178,6 +201,23 @@ if [ "$?" -gt "0" ];
 fi
 }
 
+function check_swap() {
+  echo -e "Checking if swap space is needed."
+  PHYMEM=$(free -g|awk '/^Mem:/{print $2}')
+  SWAP=$(swapon -s)
+  if [[ "$PHYMEM" -lt "2" && -z "$SWAP" ]];
+    then
+      echo -e "${GREEN}Server is running with less than 2G of RAM, creating 2G swap file.${NC}"
+      dd if=/dev/zero of=/swapfile bs=1024 count=2M
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon -a /swapfile
+  else
+    echo -e "${GREEN}The server running with at least 2G of RAM, or SWAP exists.${NC}"
+  fi
+  clear
+}
+
 
 function checks() {
 if [[ $(lsb_release -d) != *16.04* ]]; then
@@ -254,6 +294,6 @@ clear
 
 checks
 prepare_system
-download_node
+check_swap
+compile_node
 setup_node
-
