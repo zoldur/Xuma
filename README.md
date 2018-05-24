@@ -4,7 +4,7 @@ Shell script to install an [Xuma Masternode](http://www.xumacoin.org/) on a Linu
 ***
 ## Installation:
 ```
-wget -q https://raw.githubusercontent.com/zoldur/Xuma/master/xuma_install.sh  
+wget -N https://raw.githubusercontent.com/zoldur/Xuma/master/xuma_install.sh  
 bash xuma_install.sh  
 ```
 ***
@@ -36,9 +36,6 @@ Alias Address Privkey TxHash Output_index
 ***
 
 ## Usage:
-
-For security reasons **XumaCoin** is installed under **xuma** user, hence you need to **su - xuma** before checking:
-
 ```
 xuma-cli mnsync status
 xuma-cli getinfo
